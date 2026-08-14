@@ -1,0 +1,68 @@
+:root {
+  color-scheme: light;
+  --ink: #3b2417;
+  --muted: #765b47;
+  --paper: #f5b46b;
+  --paper-edge: #d98a3a;
+  --panel: #fff8ee;
+  --accent: #a94d25;
+  --focus: #2068a8;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; color: var(--ink); background: #f2e7d7; }
+button, input { font: inherit; }
+button { border: 1px solid #8d3d1e; border-radius: .45rem; padding: .5rem .75rem; color: #fff; background: var(--accent); cursor: pointer; }
+button:hover { filter: brightness(1.08); }
+button:focus-visible, input:focus-visible, canvas:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+button.secondary { color: var(--accent); background: transparent; }
+.app-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .8rem 1.1rem; background: var(--panel); border-bottom: 1px solid #d4bda2; }
+h1, h2, p { margin: 0; }
+h1 { font-size: 1.25rem; }
+.subtitle { color: var(--muted); font-size: .85rem; }
+.file-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .45rem; }
+.workspace { display: grid; grid-template-columns: minmax(230px, 280px) 1fr; min-height: calc(100vh - 76px); }
+.sidebar { padding: .75rem; overflow: auto; background: #efe0cc; border-right: 1px solid #d4bda2; }
+.panel { padding: .8rem; margin-bottom: .7rem; border: 1px solid #ddc3a5; border-radius: .55rem; background: var(--panel); }
+.panel h2 { margin-bottom: .6rem; font-size: .98rem; }
+.tool-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: .35rem; }
+.tool-button { padding-inline: .35rem; color: var(--accent); background: #fff; }
+.tool-button.is-active { color: #fff; background: var(--accent); }
+.hint, .dialog-intro { margin-top: .55rem; color: var(--muted); font-size: .78rem; line-height: 1.4; }
+label { display: block; margin-top: .5rem; font-size: .82rem; font-weight: 600; }
+input[type="number"], input[type="text"] { width: 100%; min-height: 2.1rem; margin-top: .2rem; padding: .35rem .45rem; border: 1px solid #b99978; border-radius: .35rem; background: #fffdf9; color: var(--ink); }
+form > button { width: 100%; margin-top: .75rem; }
+.optional { font-weight: 400; color: var(--muted); }
+.check-row { display: flex; align-items: center; gap: .4rem; font-weight: 400; }
+.check-row input { width: 1rem; height: 1rem; }
+.canvas-wrap { position: relative; min-width: 0; min-height: 480px; overflow: hidden; background: #d7b17e; }
+#sheet-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+#sheet-canvas.is-drawing { cursor: crosshair; }
+#sheet-canvas.is-panning { cursor: grabbing; }
+.coordinates, .status { position: absolute; z-index: 2; padding: .35rem .55rem; border: 1px solid #8b5c34; border-radius: .35rem; background: rgb(255 248 238 / 90%); box-shadow: 0 1px 3px rgb(65 30 10 / 12%); font-size: .8rem; }
+.coordinates { top: .65rem; right: .65rem; }
+.status { bottom: .65rem; left: .65rem; max-width: min(90%, 38rem); color: var(--ink); }
+.status:empty { display: none; }
+.selection-panel p { color: var(--muted); font-size: .83rem; line-height: 1.4; }
+.selection-panel button { margin-top: .55rem; }
+.sheet-info p { margin-top: .25rem; font-size: .82rem; }
+dialog { width: min(94vw, 440px); padding: 0; border: 1px solid #c99564; border-radius: .65rem; color: var(--ink); background: var(--panel); box-shadow: 0 1rem 4rem rgb(60 30 0 / 25%); }
+dialog::backdrop { background: rgb(42 22 10 / 42%); }
+#sheet-form { padding: 1rem; }
+#sheet-form h2 { font-size: 1.15rem; }
+.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1rem; }
+@media (max-width: 720px) {
+  .app-header { align-items: flex-start; flex-direction: column; }
+  .file-actions { justify-content: flex-start; }
+  .workspace { display: block; }
+  .sidebar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; padding: .6rem; border-right: 0; }
+  .panel { margin: 0; }
+  .canvas-wrap { min-height: 62vh; }
+  .sheet-info { grid-column: 1 / -1; }
+}
+@media (max-width: 430px) {
+  .sidebar { display: block; }
+  .panel { margin-bottom: .6rem; }
+  .file-actions button { flex: 1 1 auto; }
+}

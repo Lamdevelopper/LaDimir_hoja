@@ -1,0 +1,13 @@
+{
+  "name": "ladimir-hoja",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hoja milimétrica digital estática, ligera y sin dependencias de ejecución.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
