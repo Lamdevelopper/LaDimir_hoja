@@ -1,6 +1,8 @@
 # LaDimir Hoja
 
-Hoja milimétrica digital para practicar geometría, colocar puntos y unirlos con segmentos. Funciona en el navegador, sin cuenta, backend ni proceso de compilación.
+Hoja milimétrica digital de fondo blanco para colocar puntos, trazar rectas,
+segmentos y ajustes experimentales. Funciona en el navegador, sin cuenta,
+backend ni proceso de compilación.
 
 ## Usarla sin conocimientos técnicos
 
@@ -21,13 +23,19 @@ También puede publicarse directamente en GitHub Pages: selecciona la rama y la 
 
 - **Mover**: arrastra para desplazar la vista. La rueda hace zoom centrado en el cursor; también puedes usar el botón central o `Shift` mientras arrastras.
 - **Punto**: selecciona la herramienta y haz clic en la hoja. El formulario permite escribir X/Y en centímetros. El ajuste a milímetros está activado por defecto.
-- **Recta**: selecciona dos puntos existentes para crear un segmento. `Esc` cancela la selección.
+- **Recta**: selecciona el modo `Recta (infinita)` o `Segmento` y después dos puntos existentes. La recta se recorta visualmente a los bordes de la hoja; el segmento une únicamente los puntos. `Esc` cancela la selección.
+- **Recta automática**: calcula una regresión lineal experimental con todos los puntos actuales. Requiere al menos dos puntos y conserva la ecuación en el documento.
+- **Borrar recta**: activa el botón y haz clic cerca de un trazo para eliminarlo; se detectan rectas, segmentos y rectas automáticas. Tras borrar, vuelve a Mover. Atajo: `D`.
+- Los colores distinguen cada resultado: azul para rectas infinitas, verde para
+  segmentos y magenta para la recta automática. La interfaz incluye una leyenda.
 - La esquina superior derecha muestra las coordenadas del cursor en centímetros (origen en la esquina inferior izquierda).
 - Atajos: `M` mover, `P` punto y `R` recta.
 
 ## Guardar y abrir
 
-`Guardar JSON` conserva un documento versionado y `Guardar TXT` genera un formato legible. `Abrir` acepta ambos formatos y reconstruye la hoja, puntos y segmentos. Los archivos se guardan en la carpeta de descargas del navegador.
+`Guardar JSON` conserva un documento versionado y `Guardar TXT` genera un formato legible. `Importar hoja` acepta ambos formatos mediante la File API del navegador y reconstruye la hoja, puntos y trazos sin subir datos a ningún servidor. Los archivos se guardan en la carpeta de descargas del navegador.
+
+La aplicación puede publicarse directamente en GitHub Pages: selecciona la rama y la carpeta raíz del repositorio. Las rutas son relativas y no requieren backend, build ni variables de entorno; la importación funciona desde la página publicada.
 
 ## Desarrollo
 

@@ -16,7 +16,7 @@
       </div>
       <nav class="file-actions" aria-label="Archivo">
         <button id="new-sheet" type="button">Nueva hoja</button>
-        <button id="open-sheet" type="button">Abrir</button>
+        <button id="open-sheet" type="button">Importar hoja</button>
         <button id="save-json" type="button">Guardar JSON</button>
         <button id="save-txt" type="button">Guardar TXT</button>
         <input id="file-input" type="file" accept=".json,.txt,application/json,text/plain" hidden>
@@ -31,6 +31,7 @@
             <button class="tool-button is-active" id="tool-pan" data-tool="pan" type="button" aria-pressed="true" title="Mover (M)">Mover</button>
             <button class="tool-button" id="tool-point" data-tool="point" type="button" aria-pressed="false" title="Punto (P)">Punto</button>
             <button class="tool-button" id="tool-line" data-tool="line" type="button" aria-pressed="false" title="Recta (R)">Recta</button>
+            <button class="tool-button delete-tool" id="tool-delete-line" data-tool="delete-line" type="button" aria-pressed="false" title="Borrar recta">Borrar recta</button>
           </div>
           <p class="hint">Rueda: zoom · arrastra: mover · Esc: cancelar</p>
         </section>
@@ -51,7 +52,18 @@
 
         <section class="panel selection-panel" aria-labelledby="line-title">
           <h2 id="line-title">Recta</h2>
-          <p id="line-help">Activa Recta y selecciona dos puntos.</p>
+          <label for="line-kind">Modo de trazo</label>
+          <select id="line-kind" name="line-kind">
+            <option value="line" selected>Recta (infinita)</option>
+            <option value="segment">Segmento (entre puntos)</option>
+          </select>
+          <button id="best-fit" class="secondary" type="button">Recta automática</button>
+          <ul class="trace-legend" aria-label="Colores de los trazos">
+            <li><span class="trace-swatch trace-line" aria-hidden="true"></span>Recta infinita</li>
+            <li><span class="trace-swatch trace-segment" aria-hidden="true"></span>Segmento</li>
+            <li><span class="trace-swatch trace-fit" aria-hidden="true"></span>Recta automática</li>
+          </ul>
+          <p id="line-help">Activa Recta y selecciona dos puntos. La recta infinita es el modo predeterminado.</p>
           <button id="cancel-line" class="secondary" type="button" hidden>Cancelar selección</button>
         </section>
 

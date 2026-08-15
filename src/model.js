@@ -35,6 +35,18 @@ function id(value, path) {
   return value;
 }
 
+const LINE_KINDS = new Set(["segment", "line", "best-fit"]);
+const effectiveKind = (line) => line.kind ?? "segment";
+
+function validateEquation(equation, path) {
+  if (!isObject(equation)) fail("debe ser un objeto", path);
+  if (equation.axis === "y") {
+    if (!isNumber(equation.slope) || !isNumber(equation.intercept)) fail("requiere slope e intercept numéricos", path);
+  } else if (equation.axis === "x") {
+    if (!isNumber(equation.constant)) fail("requiere constant numérico", path);
+  } else fail('axis debe ser "x" o "y"', `${path}.axis`);
+}
+
 /** Validate and return the same canonical document. */
 export function validateDocument(document) {
   if (!isObject(document)) fail("debe ser un objeto");
@@ -66,10 +78,24 @@ export function validateDocument(document) {
     id(line.id, `${path}.id`);
     if (lineIds.has(line.id)) fail("id duplicado", `${path}.id`);
     lineIds.add(line.id);
-    id(line.from, `${path}.from`);
-    id(line.to, `${path}.to`);
-    if (!pointIds.has(line.from) || !pointIds.has(line.to)) fail("referencia a punto inexistente", path);
-    if (line.from === line.to) fail("from y to deben ser puntos distintos", path);
+    const kind = effectiveKind(line);
+    if (!LINE_KINDS.has(kind)) fail("kind debe ser segment, line o best-fit", `${path}.kind`);
+    if (kind === "best-fit") {
+      if (!Array.isArray(line.pointIds) || line.pointIds.length < 2) fail("pointIds requiere al menos dos puntos", `${path}.pointIds`);
+      const refs = new Set();
+      line.pointIds.forEach((pointId, pointIndex) => {
+        id(pointId, `${path}.pointIds[${pointIndex}]`);
+        if (refs.has(pointId)) fail("pointIds no puede repetir puntos", `${path}.pointIds`);
+        refs.add(pointId);
+        if (!pointIds.has(pointId)) fail("referencia a punto inexistente", `${path}.pointIds[${pointIndex}]`);
+      });
+      validateEquation(line.equation, `${path}.equation`);
+    } else {
+      id(line.from, `${path}.from`);
+      id(line.to, `${path}.to`);
+      if (!pointIds.has(line.from) || !pointIds.has(line.to)) fail("referencia a punto inexistente", path);
+      if (line.from === line.to) fail("from y to deben ser puntos distintos", path);
+    }
   });
   return document;
 }
@@ -104,7 +130,12 @@ export function cloneDocument(document) {
     version: document.version,
     sheet: { ...document.sheet },
     points: document.points.map((point) => ({ ...point })),
-    lines: document.lines.map((line) => ({ ...line })),
+    lines: document.lines.map((line) => ({
+      ...line,
+      ...(line.kind ? {} : { kind: "segment" }),
+      ...(line.pointIds ? { pointIds: [...line.pointIds] } : {}),
+      ...(line.equation ? { equation: { ...line.equation } } : {}),
+    })),
   };
 }
 
@@ -145,7 +176,9 @@ export function removePoint(document, pointId) {
 export function addLine(document, lineOrFrom, to, explicitId) {
   validateDocument(document);
   const line = isObject(lineOrFrom) ? lineOrFrom : { from: lineOrFrom, to, id: explicitId };
-  const item = { id: line.id ?? nextId(document.lines, "l"), from: line.from, to: line.to };
+  const item = { id: line.id ?? nextId(document.lines, "l"), kind: line.kind ?? "line", from: line.from, to: line.to };
+  if (item.kind === "best-fit") return addBestFitLine(document, { id: item.id });
+  if (!LINE_KINDS.has(item.kind)) fail("kind debe ser segment, line o best-fit", "line.kind");
   id(item.id, "line.id");
   if (document.lines.some((existing) => existing.id === item.id)) fail("id duplicado", "line.id");
   if (!document.points.some((point) => point.id === item.from) || !document.points.some((point) => point.id === item.to)) {
@@ -157,6 +190,40 @@ export function addLine(document, lineOrFrom, to, explicitId) {
     (existing.from === item.to && existing.to === item.from))) fail("segmento duplicado", "line");
   document.lines.push(item);
   return item;
+}
+
+/** Calculate ordinary least-squares y=m*x+b, or x=constant for vertical points. */
+export function calculateBestFit(points) {
+  if (!Array.isArray(points) || points.length < 2) fail("se requieren al menos dos puntos", "points");
+  points.forEach((point, index) => {
+    if (!isObject(point) || !isNumber(point.x) || !isNumber(point.y)) fail("cada punto requiere x e y numéricos", `points[${index}]`);
+  });
+  const meanX = points.reduce((sum, point) => sum + point.x, 0) / points.length;
+  const meanY = points.reduce((sum, point) => sum + point.y, 0) / points.length;
+  const denominator = points.reduce((sum, point) => sum + (point.x - meanX) ** 2, 0);
+  if (denominator === 0) return { axis: "x", constant: meanX };
+  const slope = points.reduce((sum, point) => sum + (point.x - meanX) * (point.y - meanY), 0) / denominator;
+  return { axis: "y", slope, intercept: meanY - slope * meanX };
+}
+
+/** Add a deterministic best-fit line over all current points (or supplied points). */
+export function addBestFitLine(document, options = {}) {
+  validateDocument(document);
+  const points = options.points ?? document.points;
+  if (!Array.isArray(points) || points.length < 2) fail("se requieren al menos dos puntos", "points");
+  const pointIds = points.map((point) => point.id);
+  const known = new Set(document.points.map((point) => point.id));
+  if (pointIds.some((pointId) => !known.has(pointId))) fail("pointIds debe referenciar puntos de la hoja", "pointIds");
+  const line = {
+    id: options.id ?? nextId(document.lines, "l"),
+    kind: "best-fit",
+    pointIds: [...pointIds],
+    equation: calculateBestFit(points),
+  };
+  id(line.id, "line.id");
+  if (document.lines.some((existing) => existing.id === line.id)) fail("id duplicado", "line.id");
+  document.lines.push(line);
+  return line;
 }
 
 /** Remove a segment by id, returning it or null. */

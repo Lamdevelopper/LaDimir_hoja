@@ -35,7 +35,11 @@ export function serializeTxt(document) {
   for (const point of document.points) {
     rows.push(["POINT", point.id, numberText(point.x), numberText(point.y), jsonString(point.label, "point.label")].join("\t"));
   }
-  for (const line of document.lines) rows.push(["LINE", line.id, line.from, line.to].join("\t"));
+  for (const line of document.lines) {
+    const kind = line.kind ?? "segment";
+    if (kind === "best-fit") rows.push(["FIT", line.id, JSON.stringify(line.equation), JSON.stringify(line.pointIds)].join("\t"));
+    else rows.push(["LINE", line.id, kind, line.from, line.to].join("\t"));
+  }
   return `${rows.join("\n")}\n`;
 }
 
@@ -48,6 +52,11 @@ function parseJsonString(value, path) {
     if (error instanceof ModelValidationError) throw error;
     parseError(`cadena JSON inválida: ${error.message}`, path);
   }
+}
+
+function parseJsonValue(value, path) {
+  try { return JSON.parse(value); }
+  catch (error) { parseError(`JSON inválido: ${error.message}`, path); }
 }
 
 function finiteNumber(value, path) {
@@ -77,8 +86,14 @@ export function deserializeTxt(input) {
       if (fields.length !== 5) parseError("registro POINT inválido", path);
       points.push({ id: fields[1], x: finiteNumber(fields[2], `${path}.x`), y: finiteNumber(fields[3], `${path}.y`), label: parseJsonString(fields[4], `${path}.label`) });
     } else if (kind === "LINE") {
-      if (fields.length !== 4) parseError("registro LINE inválido", path);
-      records.push({ id: fields[1], from: fields[2], to: fields[3] });
+      if (fields.length === 4) records.push({ id: fields[1], kind: "segment", from: fields[2], to: fields[3] });
+      else if (fields.length === 5) records.push({ id: fields[1], kind: fields[2], from: fields[3], to: fields[4] });
+      else parseError("registro LINE inválido", path);
+    } else if (kind === "FIT") {
+      if (fields.length !== 4) parseError("registro FIT inválido", path);
+      const equation = parseJsonValue(fields[2], `${path}.equation`);
+      const pointIds = parseJsonValue(fields[3], `${path}.pointIds`);
+      records.push({ id: fields[1], kind: "best-fit", equation, pointIds });
     } else parseError(`registro desconocido: ${fields[0]}`, path);
   }
   if (!sheet) parseError("falta registro SHEET");

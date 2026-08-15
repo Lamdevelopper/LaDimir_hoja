@@ -11,10 +11,10 @@ estática. Antes de cambiar contratos o coordenadas, consulta `ARCHITECTURE.md`.
 - Actualiza este archivo o el `AGENTS.md` más cercano al añadir una sección relevante.
 - Ejecuta `npm test` y una prueba manual en navegador antes de declarar terminado.
 
-La implementación inicial está completa. `src/AGENTS.md` es la referencia local
-para contratos de modelo, serialización, viewport y render; la integración DOM
-vive en `src/app.js`. El flujo validado en navegador cubre crear hoja, añadir dos
-puntos, unirlos, descargar JSON/TXT y volver a abrir JSON.
+`src/AGENTS.md` es la referencia local para contratos de modelo, serialización,
+viewport y render; la integración DOM vive en `src/app.js`. El flujo validado
+en navegador cubre crear/importar hoja, selección ampliada de puntos, recta,
+segmento, ajuste automático y round-trip JSON/TXT mediante File API.
 
 ## Propiedad durante la implementación inicial
 

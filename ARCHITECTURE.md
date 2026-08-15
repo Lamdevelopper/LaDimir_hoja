@@ -21,8 +21,8 @@ Debe poder abrirse desde GitHub Pages o con un servidor HTTP local sencillo.
   deben reconstruir el mismo documento validado.
 - `src/viewport.js`: conversión entre centímetros del documento y píxeles,
   paneo y zoom anclado al cursor.
-- `src/renderer.js`: dibujo Canvas de fondo naranja, milímetros tenues,
-  centímetros marcados, puntos y rectas.
+- `src/renderer.js`: dibujo Canvas con fondo blanco, milímetros grises tenues,
+  centímetros grises marcados, puntos y trazos.
 - `src/app.js`: única capa que toca el DOM; herramientas, formularios,
   accesibilidad, descargas y apertura de archivos.
 - `index.html` y `styles.css`: estructura y presentación.
@@ -40,13 +40,28 @@ arriba. El tamaño permitido es de 1 a 500 cm por eje.
   "version": 1,
   "sheet": { "widthCm": 21, "heightCm": 29.7, "name": "Mi hoja" },
   "points": [{ "id": "p1", "x": 2, "y": 3, "label": "A" }],
-  "lines": [{ "id": "l1", "from": "p1", "to": "p2" }]
+  "lines": [{ "id": "l1", "kind": "line", "from": "p1", "to": "p2" }]
 }
 ```
 
-TXT usa encabezados simples (`LADIMIR_HOJA 1`, `SHEET`, `POINT`, `LINE`) con
+TXT usa encabezados simples (`LADIMIR_HOJA 1`, `SHEET`, `POINT`, `LINE`, `FIT`) con
 campos separados por tabuladores. Nombres y etiquetas se codifican como cadenas
 JSON para evitar ambigüedad.
+
+### Tipos de trazo
+
+- `segment`: une únicamente los dos puntos referenciados por `from` y `to`.
+- `line`: recta infinita definida por `from` y `to`, recortada visualmente al
+  borde de la hoja. Es el modo predeterminado para trazos nuevos.
+- `best-fit`: recta experimental calculada por mínimos cuadrados con todos los
+  puntos disponibles. Guarda `pointIds` y `equation`; la ecuación usa
+  `{ "axis": "y", "slope": m, "intercept": b }` o, si todos los valores X
+  coinciden, `{ "axis": "x", "constant": x }`.
+
+Para compatibilidad, un trazo antiguo sin `kind` se interpreta como `segment`.
+La regresión con intercepto minimiza la suma de residuos cuadrados y hace que
+la suma algebraica de distancias verticales sea cero: quedan puntos arriba y
+abajo de la recta siguiendo el protocolo experimental habitual.
 
 ## Interacción
 
@@ -54,7 +69,10 @@ JSON para evitar ambigüedad.
 - Navegar: rueda para zoom centrado bajo el cursor; arrastre con botón central,
   espacio o herramienta Mover para paneo fluido.
 - Punto: clic en la hoja o formulario X/Y; ajuste opcional al milímetro.
-- Recta: seleccionar dos puntos existentes; se guarda un segmento entre ellos.
+- Recta/segmento: seleccionar el modo y después dos puntos existentes. Recta es
+  el modo inicial.
+- Recta automática: con dos o más puntos, calcula y guarda el mejor ajuste
+  lineal usando todos los puntos actuales.
 - Indicador: coordenadas del cursor siempre visibles en una esquina.
 - Persistencia: descargar `.json` o `.txt` y abrir ambos formatos.
 
@@ -69,8 +87,8 @@ es independiente del tamaño del canvas y de la densidad de píxeles del equipo.
 1. Paneo y zoom permanecen fluidos en una hoja de 500 x 500 cm.
 2. La cuadrícula muestra cada milímetro y enfatiza cada centímetro.
 3. Puntos por clic y por coordenadas quedan dentro de la hoja.
-4. Una recta une exactamente dos puntos y se actualiza al renderizar.
-5. JSON y TXT hacen round-trip sin perder tamaño, puntos ni rectas.
-6. La interfaz funciona con mouse, teclado y pantallas pequeñas.
-7. GitHub Pages puede servir el repositorio sin proceso de compilación.
-
+4. Segmento une exactamente dos puntos; recta se extiende a los bordes.
+5. Recta automática calcula un ajuste reproducible, incluido el caso vertical.
+6. JSON y TXT hacen round-trip sin perder tamaño, puntos ni trazos.
+7. La interfaz funciona con mouse, teclado y pantallas pequeñas.
+8. GitHub Pages sirve e importa archivos mediante File API, sin backend.

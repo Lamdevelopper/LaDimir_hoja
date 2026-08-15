@@ -1,13 +1,17 @@
 /** Canvas renderer for the millimetric sheet. */
 
 const COLORS = {
-  outside: '#f5f0e8',
-  paper: '#f4ad58',
-  millimeter: 'rgba(172, 83, 25, 0.11)',
-  centimeter: 'rgba(137, 61, 15, 0.58)',
-  border: '#7f3f16',
+  outside: '#f6f7f8',
+  paper: '#ffffff',
+  millimeter: 'rgba(90, 98, 108, 0.13)',
+  centimeter: 'rgba(65, 73, 84, 0.38)',
+  border: '#747b84',
   point: '#17324d',
-  line: '#17324d',
+  pointRing: '#ffffff',
+  pointOutline: '#17324d',
+  line: '#1f5aa6',
+  segment: '#13795b',
+  bestFit: '#a33a75',
 };
 
 const MIN_MINOR_SPACING_PX = 1.2;
@@ -73,7 +77,7 @@ export function renderScene(ctx, document, viewport, options = {}) {
   drawGrid(ctx, viewport, sheet, colors);
   if (can(ctx, 'restore')) ctx.restore();
 
-  drawSegments(ctx, document?.lines || [], document?.points || [], viewport, colors, options);
+  drawLines(ctx, document?.lines || [], document?.points || [], viewport, sheet, colors, options);
   drawPoints(ctx, document?.points || [], viewport, colors, options);
 
   ctx.strokeStyle = colors.border;
@@ -121,16 +125,87 @@ export function drawGrid(ctx, viewport, sheet, colors = COLORS) {
   strokeLevel(true);
 }
 
-function drawSegments(ctx, lines, points, viewport, colors, options) {
+/**
+ * Recorta una recta paramétrica infinita contra un rectángulo cerrado.
+ * `direction` no necesita estar normalizada. Devuelve extremos en coordenadas
+ * de documento o `null` si la recta es degenerada/no cruza el rectángulo.
+ */
+export function clipInfiniteLineToRect(origin, direction, rect) {
+  const ox = Number(origin?.x);
+  const oy = Number(origin?.y);
+  const dx = Number(direction?.x);
+  const dy = Number(direction?.y);
+  const minX = Number(rect?.minX);
+  const maxX = Number(rect?.maxX);
+  const minY = Number(rect?.minY);
+  const maxY = Number(rect?.maxY);
+  if (![ox, oy, dx, dy, minX, maxX, minY, maxY].every(Number.isFinite)
+      || minX > maxX || minY > maxY || (dx === 0 && dy === 0)) return null;
+
+  let enter = -Infinity;
+  let exit = Infinity;
+  for (const [position, delta, lower, upper] of [
+    [ox, dx, minX, maxX],
+    [oy, dy, minY, maxY],
+  ]) {
+    if (Math.abs(delta) <= Number.EPSILON) {
+      if (position < lower || position > upper) return null;
+      continue;
+    }
+    const first = (lower - position) / delta;
+    const second = (upper - position) / delta;
+    enter = Math.max(enter, Math.min(first, second));
+    exit = Math.min(exit, Math.max(first, second));
+    if (enter > exit) return null;
+  }
+  return {
+    from: { x: ox + enter * dx, y: oy + enter * dy },
+    to: { x: ox + exit * dx, y: oy + exit * dy },
+  };
+}
+
+function clippedTrace(line, byId, sheet) {
+  const kind = line.kind || 'segment';
+  if (kind === 'best-fit') {
+    const equation = line.equation;
+    if (equation?.axis === 'x') {
+      const x = Number(equation.constant);
+      return clipInfiniteLineToRect({ x, y: 0 }, { x: 0, y: 1 }, {
+        minX: 0, minY: 0, maxX: sheet.widthCm, maxY: sheet.heightCm,
+      });
+    }
+    if (equation?.axis === 'y') {
+      const slope = Number(equation.slope);
+      const intercept = Number(equation.intercept);
+      return clipInfiniteLineToRect({ x: 0, y: intercept }, { x: 1, y: slope }, {
+        minX: 0, minY: 0, maxX: sheet.widthCm, maxY: sheet.heightCm,
+      });
+    }
+    return null;
+  }
+
+  const from = byId.get(line.from) || line.start || line.a;
+  const to = byId.get(line.to) || line.end || line.b;
+  if (!from || !to) return null;
+  if (kind === 'segment') return { from, to };
+  if (kind !== 'line') return null;
+  return clipInfiniteLineToRect(from, { x: to.x - from.x, y: to.y - from.y }, {
+    minX: 0, minY: 0, maxX: sheet.widthCm, maxY: sheet.heightCm,
+  });
+}
+
+function drawLines(ctx, lines, points, viewport, sheet, colors, options) {
   const byId = new Map(points.map((point) => [point.id, point]));
-  ctx.strokeStyle = colors.line;
   ctx.lineWidth = finite(options.lineWidth, 2);
   for (const line of lines) {
-    const from = byId.get(line.from) || line.start || line.a;
-    const to = byId.get(line.to) || line.end || line.b;
-    if (!from || !to) continue;
-    const a = viewport.documentToScreen(from);
-    const b = viewport.documentToScreen(to);
+    const trace = clippedTrace(line, byId, sheet);
+    if (!trace) continue;
+    const kind = line.kind || 'segment';
+    ctx.strokeStyle = kind === 'line'
+      ? colors.line
+      : kind === 'best-fit' ? colors.bestFit : colors.segment;
+    const a = viewport.documentToScreen(trace.from);
+    const b = viewport.documentToScreen(trace.to);
     if (can(ctx, 'beginPath')) ctx.beginPath();
     if (can(ctx, 'moveTo')) ctx.moveTo(a.x, a.y);
     if (can(ctx, 'lineTo')) ctx.lineTo(b.x, b.y);
@@ -139,11 +214,20 @@ function drawSegments(ctx, lines, points, viewport, colors, options) {
 }
 
 function drawPoints(ctx, points, viewport, colors, options) {
-  const radius = finite(options.pointRadius, 4);
-  ctx.fillStyle = colors.point;
+  const radius = Math.max(1, finite(options.pointRadius, 6));
+  const ringWidth = Math.max(1, finite(options.pointRingWidth, 2));
   for (const point of points) {
-    if (!viewport.containsDocumentPoint(point, radius / viewport.scalePxPerCm)) continue;
+    if (!viewport.containsDocumentPoint(point, (radius + ringWidth) / viewport.scalePxPerCm)) continue;
     const p = viewport.documentToScreen(point);
+    // El aro blanco separa el punto tanto de la cuadrícula como de las rectas.
+    ctx.fillStyle = colors.pointRing;
+    if (can(ctx, 'beginPath')) ctx.beginPath();
+    if (can(ctx, 'arc')) ctx.arc(p.x, p.y, radius + ringWidth, 0, Math.PI * 2);
+    if (can(ctx, 'fill')) ctx.fill();
+    ctx.strokeStyle = colors.pointOutline;
+    ctx.lineWidth = 1;
+    if (can(ctx, 'stroke')) ctx.stroke();
+    ctx.fillStyle = colors.point;
     if (can(ctx, 'beginPath')) ctx.beginPath();
     if (can(ctx, 'arc')) ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
     if (can(ctx, 'fill')) ctx.fill();
